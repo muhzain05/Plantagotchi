@@ -1,189 +1,166 @@
-# 🌿 Plantagotchi – Interactive Illustrated Plant Care App
+# Plantagotchi
 
-<div align="center">
-  <img src="Animations/Logo.png" alt="Plant Whisperer Logo" width="100" height="100">
+A React Native / Expo plant-care prototype that combines plant identification, care-data lookup, live sensor-state visualization, and an illustrated virtual-companion interface.
 
-  **A hand-drawn digital companion that lets plants “speak” through real-time sensor emotions.**
-  
-  [![React Native](https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactnative.dev/)
-  [![Expo](https://img.shields.io/badge/Expo-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev/)
-  [![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
-  [![WebSocket](https://img.shields.io/badge/WebSocket-4B8BBE?style=for-the-badge&logo=socket.io&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API)
-</div>
+The repository contains three runnable pieces:
 
----
+1. an Expo mobile/web client
+2. a TypeScript WebSocket mock-sensor server
+3. a small React/Vite control panel for changing simulated sensor values
 
-## 📖 About
+> **Hardware scope:** the checked-in code consumes sensor-shaped telemetry but does not contain Arduino/microcontroller firmware. Hardware acquisition is therefore outside the implementation documented here.
 
-We grow up learning how to care for pets and people — but not always for the quiet life thriving around us.  
-**Plantagotchi** reimagines that connection by turning plant care into an *interactive, emotional experience* where **nature finally speaks back**.  
+## Mobile application
 
-It’s not just about keeping a plant alive — it’s about learning to *listen, bond, and grow alongside it*.  
-Through bioelectrical signals and live environmental readings, your plant expresses how it feels through hand-drawn emotions and dialogue bubbles, creating a playful, expressive relationship between you and nature.
+The main client lives in <code>plant-whisperer/</code> and uses Expo Router.
 
+### Plant identification
 
----
+The camera flow can:
 
-## ✨ Features
+- capture a photo with Expo Camera
+- select an image from the gallery
+- submit the image to PlantNet
+- display the top identification result and alternatives
+- fetch care fields from Perenual
+- fetch environment ranges from Plantbook
+- cache selected species/care data with AsyncStorage
+- continue into the dashboard
 
-### 🌤️ **Real-Time Emotional Feedback**
-- The plant reacts dynamically to changes in temperature, humidity, and soil moisture.  
-- When you water it or when the weather shifts, its expression changes immediately.  
-- See emotion bubbles like *“Whoa, the wind is tossing me!”* or *“I’m thirsty!”* in real time.
+The manual species-selection screen currently exists as a placeholder and is not yet implemented beyond navigation.
 
-### 🧠 **Smart Sensor Integration**
-- **BioAmp EXG Pill** detects micro-voltage bio-signals.  
-- **MQ-3**, **HL-83**, **YL-69**, and **DHT11** monitor air, water, soil, and temperature.  
-- The **Arduino UNO R3** streams data to a backend via **WebSockets** for seamless, live updates.
+### Live plant state
 
-### 🎨 **Illustrated Art Style**
-- Soft, cozy, **hand-drawn visuals** instead of pixel art.  
-- Every emotion — happy, tired, dizzy, or peaceful — is drawn with expressive faces, props, and speech bubbles.  
-- Crafted for **universal appeal**, from kids to educators to eco-tech enthusiasts.
+The client accepts this telemetry shape over WebSocket:
 
-### 💬 **End-to-End Interactive System**
-- **Hardware**: Real sensors capture live environmental and biological signals.  
-- **Backend**: Processing pipeline filters noise and interprets plant mood.  
-- **Frontend**: A React Native app displays the plant’s reactions in smooth, illustrated animations.
+~~~text
+soil  - soil-moisture reading
+temp  - temperature
+hum   - relative humidity
+mq2   - gas / air-quality reading
+rain  - surface-wetness / watering signal
+bio   - biosignal metric
+~~~
 
----
+<code>usePlantState</code> converts those raw values into hydration, comfort, air-quality, and biosignal scores. <code>plantModel.ts</code> then derives plant states and messages from explicit thresholds.
 
-## 🎨 Screenshots & Live Animations
+Examples from the current source include:
 
-| 🌞 **Perfect Conditions** | 💧 **Thirsty Mode** | 🥵 **Dizzy** |
-|------------------------|--------------------|----------------|
-| ![Perfect](./Animations/peak_animation_night.gif) | ![Thirsty](./Animations/Final/Day/thirsty_animation_day.gif) | ![Bad Air Quality](./Animations/Final/Day/dizzy_animation_day.gif) |
-| *Healthy and happy plant in stable conditions* | *Soil moisture too low — needs water!* | *Poor air or gas conditions causing stress* |
+- temperature: cold below 13 °C, stable from 13–27 °C, hot above 27 °C
+- humidity: dry below 35%, normal from 35–80%, humid above 80%
+- soil: dry / thirsty / okay / hydrated bands
+- air quality: good / bad / polluted bands based on the MQ-2-style reading
+- watering detection from the rain/wetness channel
+- a moving baseline for the biosignal channel
 
-| 🌙 **Cold Temperature** | 😵 **Windy** | 💧 **Watering** |
-|-------------------|------------------|----------------|
-| ![Cold](./Animations/Final/Night/cold_animation.gif) | ![Windy](./Animations/wind_trigger_animation.gif) | ![Water](./Animations/watering_plant_night.gif) |
-| *Cold under night lighting* | *In Windy Conditions* | *Watering the plant* |
+The dashboard records emotion changes in a short event log and can create a watering reminder when hydration falls below the configured threshold.
 
----
-## 🎥 Demo
+## Mock sensor pipeline
 
-[**Plantagotchi Live Demo ▶️**](https://youtube.com/shorts/_Rtnkhy3jHY?si=Nw0nGcZnq8E2Oxly)
+<code>mock-server/server.ts</code> runs an Express HTTP server plus a WebSocket server on port 4000.
 
----
+It:
 
-## 🚀 Quick Start
+- exposes <code>GET /health</code>
+- keeps the current six-channel sensor state
+- broadcasts the state to connected clients
+- supports <code>set</code>, <code>start</code>, and <code>stop</code> WebSocket messages
+- streams at a one-second interval by default
 
-**See [RUN_INSTRUCTIONS.md](./RUN_INSTRUCTIONS.md) for detailed step-by-step instructions on how to run the app.**
+The companion <code>sensor-mock-ui/</code> app provides controls for changing values and previewing the exact payload received by the mobile client.
 
-### Quick Run (TL;DR)
+## Stack
 
-1. **Start Mock Server:**
-   ```bash
-   cd mock-server
-   npm install  # First time only
-   npm run server
-   ```
+### Mobile
 
-2. **Start App:**
-   ```bash
-   cd plant-whisperer
-   npm install  # First time only
-   npm start
-   ```
+- Expo 54
+- React 19
+- React Native 0.81
+- TypeScript
+- Expo Router
+- Expo Camera / Image Picker
+- AsyncStorage
+- PlantNet API
+- Perenual API
+- Plantbook API
 
-3. **Connect Device:**
-   - Android Emulator: Press `a` in Expo terminal
-   - Physical Android: Scan QR code with Expo Go
-   - iOS Simulator: Press `i` in Expo terminal
-   - Web Browser: Press `w` in Expo terminal
+### Simulation tooling
 
-## Main App
+- Node.js
+- Express
+- <code>ws</code>
+- TypeScript / <code>tsx</code>
+- React + Vite for the sensor-control UI
 
-See `plant-whisperer/README.md` for the main React Native app setup.
+## Repository layout
 
-## Mock Sensor Server
+~~~text
+Plantagotchi/
+├── plant-whisperer/    # Expo client
+│   ├── app/            # routed screens
+│   ├── lib/            # PlantNet client
+│   └── src/
+│       ├── hooks/
+│       ├── services/
+│       └── screens/
+├── mock-server/        # WebSocket telemetry simulator
+├── sensor-mock-ui/     # browser controls for simulator
+├── Animations/         # illustrated plant states
+└── RUN_INSTRUCTIONS.md
+~~~
 
-A local mock sensor server for testing the plant care app without hardware.
+## Run with simulated sensors
 
-### Setup
+Terminal 1:
 
-1. **Install mock server dependencies:**
-   ```bash
-   cd mock-server
-   npm install
-   ```
+~~~bash
+cd mock-server
+npm install
+npm run server
+~~~
 
-2. **Install UI dependencies:**
-   ```bash
-   cd sensor-mock-ui
-   npm install
-   ```
+Terminal 2:
 
-### Running
+~~~bash
+cd plant-whisperer
+npm install
+npm start
+~~~
 
-1. **Start the mock server:**
-   ```bash
-   cd mock-server
-   npm run server
-   ```
-   The server will run on `http://localhost:4000` with WebSocket at `ws://localhost:4000/ws`
+Optional sensor-control UI:
 
-2. **Start the UI (in a separate terminal):**
-   ```bash
-   cd sensor-mock-ui
-   npm run dev
-   ```
-   The UI will be available at `http://localhost:5173`
+~~~bash
+cd sensor-mock-ui
+npm install
+npm run dev
+~~~
 
-### Usage
+The client automatically handles localhost, Android-emulator, and Expo development-host WebSocket addresses. <code>EXPO_PUBLIC_WS_URL</code> can override the WebSocket endpoint.
 
-- **Controls Panel**: Adjust sensor values using sliders or number inputs
-  - `soil`: Soil moisture (0-1023)
-  - `temp`: Temperature in °C (10-35)
-  - `hum`: Humidity % RH (20-90)
-  - `mq2`: MQ-2 gas/smoke sensor (0-1023)
-  - `rain`: Raindrop sensor (0-1023)
-  - `bio`: BioAmp EXG signal metric (0-50)
+## API configuration
 
-- **Send Once**: Immediately send current sensor values
-- **Start Stream**: Automatically send sensor readings at specified interval (default 1000ms)
-- **Stop Stream**: Stop automatic streaming
+The source supports these environment variables:
 
-- **Preview Panel**: Shows the exact format that the mobile app will consume:
-  - Arduino-style line format: `STATE;soil=650;temp=24.5;hum=58.0;mq2=180;rain=900;bio=8.52`
-  - Parsed JSON values
+~~~text
+EXPO_PUBLIC_PLANTNET_API_KEY
+EXPO_PUBLIC_PERENUAL_API_KEY
+EXPO_PUBLIC_PLANTBOOK_TOKEN
+EXPO_PUBLIC_WS_URL
+~~~
 
-### WebSocket Protocol
+Do not commit private credentials to a public repository. Restrict/rotate provider credentials as appropriate for their intended client-side use.
 
-The server accepts the following messages:
+## Demo
 
-```json
-// Set sensor values
-{"type": "set", "state": {"soil": 550, "temp": 23, "hum": 60, "mq2": 200, "rain": 900, "bio": 8.0}}
+[Plantagotchi demo](https://youtube.com/shorts/_Rtnkhy3jHY?si=Nw0nGcZnq8E2Oxly)
 
-// Start auto-streaming
-{"type": "start", "intervalMs": 1000}
+## Current limitations
 
-// Stop streaming
-{"type": "stop"}
-```
+- no microcontroller/Arduino firmware is included
+- manual species selection is still a TODO
+- sensor-to-emotion logic is rule/threshold based rather than a learned model
+- production deployment/networking for a physical sensor source is not provided by the mock server
 
-The server broadcasts messages in this format:
+## Author
 
-```json
-{
-  "line": "STATE;soil=650;temp=24.5;hum=58.0;mq2=180;rain=900;bio=8.52",
-  "json": {
-    "soil": 650,
-    "temp": 24.5,
-    "hum": 58.0,
-    "mq2": 180,
-    "rain": 900,
-    "bio": 8.52
-  }
-}
-```
-
-### Sensors
-
-- **DHT11**: Temperature (`temp`) and Humidity (`hum`)
-- **MQ-2**: Gas/smoke level (`mq2`)
-- **Soil Moisture**: Soil moisture level (`soil`)
-- **Raindrop**: Surface wetness (`rain`)
-- **BioAmp EXG**: Bio signal metric (`bio`)
+Muhammad Zain Asad — [GitHub](https://github.com/muhzain05)
